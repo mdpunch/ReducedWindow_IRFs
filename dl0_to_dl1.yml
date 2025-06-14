@@ -1,0 +1,17 @@
+# configuration for going from DL0 to DL1a, only extracting and storing images
+DataWriter:
+  Contact:
+    name: Maximilian Linhoff
+    email: maximilian.linhoff@tu-dortmund.de
+    organization: CTAO / DPPS
+
+  write_dl1_images: true
+  write_dl1_parameters: false
+  write_dl2: false
+  transform_image: true
+  transform_peak_time: true
+
+CameraCalibrator:
+  image_extractor_type:
+    - ["type", "*", "NeighborPeakWindowSum"]
+    - ["type", "*FlashCam", "FlashCamExtractor"]

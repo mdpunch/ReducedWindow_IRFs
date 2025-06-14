@@ -1,0 +1,56 @@
+# configuration for going from DL1a to DL2, performing
+# * Image Cleaning
+# * Image parametrizations
+# * geometric stereo reconstruction using HillasReconstructor
+DataWriter:
+  Contact:
+    name: Maximilian Linhoff
+    email: maximilian.linhoff@tu-dortmund.de
+    organization: CTAO / DPPS
+
+  write_dl1_images: false
+  write_dl1_parameters: true
+  write_dl2: true
+
+ImageProcessor:
+  image_cleaner_type: TailcutsImageCleaner
+
+  TailcutsImageCleaner:
+    picture_threshold_pe:
+      - [type, "LST*", 8.5]
+      - [type, "MST*", 9.0]
+      - [type, "SST*", 4.0]
+    boundary_threshold_pe:
+      - [type, "LST*", 4.25]
+      - [type, "MST*", 4.5]
+      - [type, "SST*", 2.0]
+    keep_isolated_pixels: False
+    min_picture_neighbors: 2
+
+  ImageQualityQuery:
+    quality_criteria:
+      - ["enough_pixels", "np.count_nonzero(image) > 2"]
+      - ["enough_charge", "image.sum() > 50"]
+
+ShowerProcessor:
+  reconstructor_types:
+    - HillasReconstructor
+
+  HillasReconstructor:
+    StereoQualityQuery:
+      quality_criteria:
+        - ["enough intensity", "parameters.hillas.intensity > 50"]
+        - ["Positive width", "parameters.hillas.width.value > 0"]
+        - ["enough pixels", "parameters.morphology.n_pixels > 3"]
+        - ["not clipped", "parameters.leakage.intensity_width_2 < 0.5"]
+
+SoftwareTrigger:
+  # require at least two telescopes after subarray selection
+  # necessary since simulations only require two telescopes triggered 
+  # in the hyper-array
+  min_telescopes: 2
+  # LST hardware stereo trigger requires at least 2 LSTs present.
+  # Remove single LST telescope event from subarray event.
+  min_telescopes_of_type:
+    - ["type", "*", 0]
+    - ["type", "LST*", 2]

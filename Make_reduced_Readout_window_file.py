@@ -61,7 +61,8 @@ version
 # %%
 if hasattr(sys,'ps1'):
     site = "LaPalma"
-    particle = "gamma"
+    particle = "gamma-diffuse"
+    ReduceWindow = True
 else:
     parser = argparse.ArgumentParser(
                     prog='Make_reduced_Readout_window',
@@ -96,9 +97,12 @@ except KeyError:
 try:
     OUT_DIR = '{OUT_DIR}'.format(**os.environ)
 except KeyError:
-    OUT_DIR = "/scr/punch/CTA/Prod6/LaPalma/2025/"
+    OUT_DIR = "/scr/punch/CTA/Prod6/LaPalma/2025/"+f"{particle}/"
 
-PROD_DIR,OUT_DIR
+# %%
+print("Running with:\n",
+      site,particle,"ReducedWindow" if ReduceWindow else "StandardWindow","\n",
+      PROD_DIR,"\n",OUT_DIR)
 
 # %% [markdown]
 # ## Forget about CTAO-S
@@ -111,7 +115,7 @@ PROD_DIR,OUT_DIR
 # ## CTAO-N files
 
 # %%
-if particle != "gamma_diffuse":
+if particle != "gamma-diffuse":
     simtel_files = glob(PROD_DIR+f"/{particle}*.simtel.zst")
     if particle == "gamma": # Sift out any diffuse files there might be in there
         simtel_files = [sf for sf in simtel_files if not "cone" in sf]
@@ -151,7 +155,7 @@ else:
     tels_alpha = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,
                   38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,
                   58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77]  # Maybe should stop at (including) 74?? https://github.com/Eventdisplay/Eventdisplay_AnalysisFiles_CTA/blob/a534e533199b0305b86d4006956f032388636b56/DetectorGeometry/CTA.prod6S.Am-0LSTs14MSTs37SSTs.lis#L4
-    
+
 
 # %%
 source = EventSource(first_file,allowed_tels=tels_alpha)
@@ -170,7 +174,9 @@ source.subarray.peek()
 plt.xlim([-300,400])
 plt.ylim([-350,350])
 #
-plt.show()
+plt.show(block=False)
+from time import sleep
+sleep(10)
 
 # %% [markdown]
 # ## From https://ctapipe.readthedocs.io/en/v0.20.0/auto_examples/tutorials/ctapipe_overview.html
@@ -234,7 +240,8 @@ from pprint import pprint
 with open("dl0_to_dl1.yml") as stream:
     try:
         dl0_to_dl1 = yaml.safe_load(stream)
-        pprint(dl0_to_dl1)
+        if hasattr(sys,'ps1'):
+            pprint(dl0_to_dl1)
     except yaml.YAMLError as exc:
         print(exc)
 
@@ -242,7 +249,8 @@ with open("dl0_to_dl1.yml") as stream:
 with open("dl1_to_dl2.yml") as stream:
     try:
         dl1_to_dl2 = yaml.safe_load(stream)
-        pprint(dl1_to_dl2)
+        if hasattr(sys,'ps1'):
+            pprint(dl1_to_dl2)
     except yaml.YAMLError as exc:
         print(exc)
 
@@ -256,15 +264,16 @@ def ReadoutWindowReducer(event,subarray):
     Fixed Readout Window Reducer
     (Fixed over all camera)
     Reduce the readout window for MSTs and LSTs.
-    Hardcoded for now, with for MSTs [12:28] and LSTs [10:30]
+    Hardcoded for now, with for MSTs [12:27] and LSTs [10:30],
+    so a reduction of a factor of 4 for MST-NectarCAM, and factor 2 for LST
     """
 
     for tel_id in event.trigger.tels_with_trigger:
         # Maybe this would be faster? tel in subarray.get_tel_ids_for_type("MST_MST_NectarCam"):
         cam_name_lower = source.subarray.tel[tel_id].camera_name.lower()
         if "nectarcam" == cam_name_lower:
-            event.r0.tel[tel_id].waveform = event.r0.tel[tel_id].waveform[:, :, 12:28]
-            event.r1.tel[tel_id].waveform = event.r1.tel[tel_id].waveform[:, :, 12:28]
+            event.r0.tel[tel_id].waveform = event.r0.tel[tel_id].waveform[:, :, 12:27]
+            event.r1.tel[tel_id].waveform = event.r1.tel[tel_id].waveform[:, :, 12:27]
         elif "lstcam" == cam_name_lower: 
             event.r0.tel[tel_id].waveform = event.r0.tel[tel_id].waveform[:, :, 10:30]
             event.r1.tel[tel_id].waveform = event.r1.tel[tel_id].waveform[:, :, 10:30]
@@ -276,12 +285,13 @@ def ReadoutWindowReducer(event,subarray):
 from pathlib import Path
 
 # %%
-for in_file in simtel_files:
+for num_file,in_file in enumerate(simtel_files):
     
     #for ReduceWindow in [False,True]:
 
         in_path = Path(in_file)
-        print(in_path.stem,ReduceWindow)
+        print(f"File {num_file+1} of {len(simtel_files)}:",
+              in_path.stem,"ReducedWindow" if ReduceWindow else "StandardWindow")
 
         out_file = in_path.stem[:-7]
         
@@ -328,11 +338,12 @@ for in_file in simtel_files:
                      if len(event.trigger.tels_with_trigger) > 9:
                          plotting_event = deepcopy(event)
 
-             # Added to get the 
+             # Added to get the shower distribution histograms in the file
              writer.write_simulated_shower_distributions(source.simulated_shower_distributions)
              print()
 
-# %%
+# %% [markdown]
+# ## Show some results on the last file
 
 # %%
 from ctapipe.io import DataWriter, EventSource, TableLoader
