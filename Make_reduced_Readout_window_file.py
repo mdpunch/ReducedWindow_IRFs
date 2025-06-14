@@ -63,6 +63,7 @@ if hasattr(sys,'ps1'):
     site = "LaPalma"
     particle = "gamma-diffuse"
     ReduceWindow = True
+    start_run = 0
 else:
     parser = argparse.ArgumentParser(
                     prog='Make_reduced_Readout_window',
@@ -75,12 +76,15 @@ else:
                        nargs='?', default='gamma')
     parser.add_argument("--reduced-window","-r",action=argparse.BooleanOptionalAction,
                         default=True,help="Hardwired reduced window, or standard as simulated")
+    parser.add_argument("--start-run",type=int,
+                        default=0,help="Start from a given run-number, ignoring previous")
     args = parser.parse_args()
     #print("args:",args)
     
     site = args.site
     particle = args.particle
     ReduceWindow = True if args.reduced_window else False
+    start_run = args.start_run
     if particle not in ["gamma", "gamma-diffuse", "proton", "electron"]:
         print(f"Error:\n" 
               f"  Particle type \"{particle}\" unknown. \n"
@@ -131,6 +135,17 @@ else:
     else:
         print(f"Error: Prod directory {PROD_DIR} does not exist.")
     sys.exit()
+
+# %%
+simtel_files.sort()
+
+# %%
+# Allow to start from a given run
+is_start = [f"run{start_run:06d}" in sf for sf in simtel_files]
+if True in is_start:
+    start_index = is_start.index(True)
+else:
+    start_index = 0
 
 # %%
 if not os.path.isdir(OUT_DIR):
@@ -285,12 +300,12 @@ def ReadoutWindowReducer(event,subarray):
 from pathlib import Path
 
 # %%
-for num_file,in_file in enumerate(simtel_files):
+for num_file,in_file in enumerate(simtel_files[start_index:]):
     
     #for ReduceWindow in [False,True]:
 
         in_path = Path(in_file)
-        print(f"File {num_file+1} of {len(simtel_files)}:",
+        print(f"File {num_file+1+start_index} of {len(simtel_files)}:",
               in_path.stem,"ReducedWindow" if ReduceWindow else "StandardWindow")
 
         out_file = in_path.stem[:-7]
