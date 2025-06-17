@@ -132,6 +132,11 @@ ctapipe-apply-models --input $EVAL_ELECTRON_FILE \
   --log-level INFO
 ```
 
+## Then make IRFs, or otherwise evaluate performance
+
+https://ctapipe.readthedocs.io/en/latest/user-guide/tools/irf_guide.html not done yet.
+
+Using `performance` script from Max, updated for `ctapipe_0.24` and for now with lower statistics required per bin (9 instead of 25 for sensitivity, 9 instead of 100 for Theta2 cut).
 
 
 
