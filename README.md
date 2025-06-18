@@ -71,13 +71,42 @@ ls $OUTPUT_DIR/electron/el*std* | split -n 2 -a 1 - electron_std_
 
 ## Merge the files in the lists
 
+### Merge Files !!! Execute this twice, with either std or red in STD_OR_RED
+
+```bash
+export STD_OR_RED=red
+# Gamma (diffuse) train energy
+ctapipe-merge $(cat gamma_diffuse_${STD_OR_RED}_a) --output $OUTPUT_DIR/gamma_diffuse_merged_train_en.$STD_OR_RED.dl2.h5 --overwrite
+# Gamma (diffuse) train classifier
+ctapipe-merge $(cat gamma_diffuse_${STD_OR_RED}_b) --output $OUTPUT_DIR/gamma_diffuse_merged_train_cls.$STD_OR_RED.dl2.h5 --overwrite
+ctapipe-merge $(cat gamma_diffuse_red_b) --output $OUTPUT_DIR/gamma_diffuse_merged_train_cls.red.dl2.h5 --overwrite
+# Gamma (diffuse) optimize cuts
+ctapipe-merge $(cat gamma_diffuse_${STD_OR_RED}_c) --output $OUTPUT_DIR/gamma_diffuse_merged_optimize_cuts.$STD_OR_RED.dl2.h5 --overwrite
+ctapipe-merge $(cat gamma_diffuse_red_c) --output $OUTPUT_DIR/gamma_diffuse_merged_optimize_cuts.red.dl2.h5 --overwrite
+# Gamma (diffuse) IRFs
+ctapipe-merge $(cat gamma_diffuse_${STD_OR_RED}_d) --output $OUTPUT_DIR/gamma_diffuse_merged_irfs.$STD_OR_RED.dl2.h5 --overwrite
+# Proton train classifier
+ctapipe-merge $(cat proton_${STD_OR_RED}_a) --output $OUTPUT_DIR/proton_merged_train_cls.$STD_OR_RED.dl2.h5 --overwrite
+# Proton optimize cuts
+ctapipe-merge $(cat proton_${STD_OR_RED}_b) --output $OUTPUT_DIR/proton_merged_optimize_cuts.$STD_OR_RED.dl2.h5 --overwrite
+# Proton IRFs
+ctapipe-merge $(cat proton_${STD_OR_RED}_c) --output $OUTPUT_DIR/proton_merged_irfs.$STD_OR_RED.dl2.h5 --overwrite
+# Electron (diffuse) optimize cuts
+ctapipe-merge $(cat electron_${STD_OR_RED}_a) --output $OUTPUT_DIR/electron_merged_optimize_cuts.$STD_OR_RED.dl2.h5 --overwrite
+# Electron (diffuse) IRFs
+ctapipe-merge $(cat electron_${STD_OR_RED}_b) --output $OUTPUT_DIR/electron_merged_irfs.$STD_OR_RED.dl2.h5 --overwrite
+# Gamma (point-like) optimize cuts
+ctapipe-merge $(cat gamma_${STD_OR_RED}_a) --output $OUTPUT_DIR/gamma_point_merged_optimize_cuts.$STD_OR_RED.dl2.h5 --overwrite
+# Gamma (point-like) IRFs
+ctapipe-merge $(cat gamma_${STD_OR_RED}_b) --output $OUTPUT_DIR/gamma_point_merged_irfs.$STD_OR_RED.dl2.h5 --overwrite
+```
+
 ### Configs
 ```bash
 export REG_CONF_FILE=./train_energy_regressor.yml 
 export CLF_CONF_FILE=./train_particle_classifier.yml 
 export DISP_CONF_FILE=./train_disp_reconstructor.yml
 ```
-### Merge Files !!! Execute this twice, with either std or red in STD_OR_RED
 
 ```bash
 export STD_OR_RED=red
@@ -94,6 +123,7 @@ export EVAL_ELECTRON_FILE=$OUTPUT_DIR/electron_merged_irfs.$STD_OR_RED.dl2.h5
 ### Training
 
 ```bash
+export STD_OR_RED=red
 ctapipe-train-energy-regressor --input $INPUT_GAMMA_EN_FILE   --output $OUTPUT_DIR/energy_regressor_${STD_OR_RED}.pkl   --config $REG_CONF_FILE   --cv-output $OUTPUT_DIR/cv_energy_${STD_OR_RED}.h5   --provenance-log $OUTPUT_DIR/train_energy_${STD_OR_RED}.provenance.log   --log-file $OUTPUT_DIR/train_energy_${STD_OR_RED}.log   --log-level INFO --overwrite
 ctapipe-apply-models --input $INPUT_GAMMA_CLF_FILE   --output $OUTPUT_DIR/gamma_train_clf_$STD_OR_RED.dl2.h5   --reconstructor $OUTPUT_DIR/energy_regressor_$STD_OR_RED.pkl   --provenance-log $OUTPUT_DIR/apply_gamma_train_clf_$STD_OR_RED.provenance.log   --log-file $OUTPUT_DIR/apply_gamma_train_clf_$STD_OR_RED.log   --log-level INFO --overwrite
 ctapipe-apply-models --input $INPUT_PROTON_FILE    --output $OUTPUT_DIR/proton_train_clf_$STD_OR_RED.dl2.h5   --reconstructor $OUTPUT_DIR/energy_regressor_$STD_OR_RED.pkl   --provenance-log $OUTPUT_DIR/apply_proton_train_$STD_OR_RED.provenance.log   --log-file $OUTPUT_DIR/apply_proton_train_$STD_OR_RED.log   --log-level INFO --overwrite
@@ -104,6 +134,7 @@ ctapipe-train-disp-reconstructor --input $OUTPUT_DIR/gamma_train_clf_$STD_OR_RED
 ### Apply Models
 
 ```
+export STD_OR_RED=red
 ctapipe-apply-models --input $EVAL_GAMMA_FILE \
   --output $OUTPUT_DIR/gamma_final_$STD_OR_RED.dl2.h5 \
   --reconstructor $OUTPUT_DIR/energy_regressor_$STD_OR_RED.pkl \
@@ -138,7 +169,30 @@ https://ctapipe.readthedocs.io/en/latest/user-guide/tools/irf_guide.html not don
 
 Using `performance` script from Max, updated for `ctapipe_0.24` and for now with lower statistics required per bin (9 instead of 25 for sensitivity, 9 instead of 100 for Theta2 cut).
 
+And Tomas Bylund's benchmark script:
 
+```bash
+export STD_OR_RED=red
+ctapipe-optimize-event-selection \
+		--config optimize_cuts.yaml \
+		--gamma-file=$OUTPUT_DIR/gamma_final_$STD_OR_RED.dl2.h5 \
+		--electron-file=$OUTPUT_DIR/electron_final_$STD_OR_RED.dl2.h5 \
+		--proton-file=$OUTPUT_DIR/proton_final_$STD_OR_RED.dl2.h5 \
+		--output $OUTPUT_DIR/cuts.$STD_OR_RED.fits \
+		--overwrite
+
+ctapipe-compute-irf \
+  --config compute_irf.yaml \
+  --cuts $OUTPUT_DIR/cuts.$STD_OR_RED.fits \
+  --gamma-file=$OUTPUT_DIR/gamma_final_$STD_OR_RED.dl2.h5 \
+  --electron-file=$OUTPUT_DIR/electron_final_$STD_OR_RED.dl2.h5 \
+  --proton-file=$OUTPUT_DIR/proton_final_$STD_OR_RED.dl2.h5 \
+  --output $OUTPUT_DIR/irf.$STD_OR_RED.fits \
+  --benchmark-output $OUTPUT_DIR/benchmark.$STD_OR_RED.fits \
+  --overwrite
+```
+
+https://gitlab.cta-observatory.org/cta-computing/dpps/datapipe/datapipe-testbench
 
 
 
